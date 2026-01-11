@@ -9,9 +9,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,7 +24,7 @@ import com.example.bengkelku.data.local.entity.SlotServis
 import com.example.bengkelku.ui.view.components.BaseScaffold
 import com.example.bengkelku.viewmodel.slotservis.AksiSlotState
 import com.example.bengkelku.viewmodel.slotservis.SlotServisViewModel
-import java.util.*
+import java.util.Calendar
 
 @Composable
 fun KelolaSlotServisScreen(
@@ -77,7 +78,7 @@ fun KelolaSlotServisScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        "Belum ada slot servis.\nTambahkan slot baru dengan tombol +",
+                        text = "Belum ada slot servis",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -91,8 +92,8 @@ fun KelolaSlotServisScreen(
                         .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    items(semuaSlot) { slot ->
-                        SlotItemCard(
+                    items(semuaSlot, key = { it.id }) { slot ->
+                        SlotServisItemCard(
                             slot = slot,
                             onEdit = { viewModel.pilihUntukEdit(slot) },
                             onHapus = { showHapusDialog = slot }
@@ -143,7 +144,7 @@ fun KelolaSlotServisScreen(
             onDismissRequest = { showHapusDialog = null },
             title = { Text("Hapus Slot") },
             text = {
-                Text("Yakin ingin menghapus slot ${slot.tanggal} (${slot.jamMulai} - ${slot.jamSelesai})?")
+                Text("Yakin ingin menghapus slot tanggal ${slot.tanggal} (${slot.jamMulai} - ${slot.jamSelesai})?")
             },
             confirmButton = {
                 TextButton(
@@ -165,22 +166,16 @@ fun KelolaSlotServisScreen(
 }
 
 @Composable
-private fun SlotItemCard(
+private fun SlotServisItemCard(
     slot: SlotServis,
     onEdit: () -> Unit,
     onHapus: () -> Unit
 ) {
-    val sisaKapasitas = slot.kapasitas - slot.terpakai
-    val isAvailable = sisaKapasitas > 0
+    val sisaSlot = slot.kapasitas - slot.terpakai
+    val isAktif = sisaSlot > 0
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isAvailable)
-                MaterialTheme.colorScheme.surface
-            else
-                MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.3f)
-        )
+        modifier = Modifier.fillMaxWidth()
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
@@ -191,25 +186,34 @@ private fun SlotItemCard(
                 verticalAlignment = Alignment.Top
             ) {
                 Column(modifier = Modifier.weight(1f)) {
+                    // Tanggal
                     Text(
                         text = slot.tanggal,
                         style = MaterialTheme.typography.titleMedium
                     )
+
+                    // Jam mulai - jam selesai
                     Text(
-                        text = "${slot.jamMulai} - ${slot.jamSelesai}",
+                        text = "${slot.jamMulai} – ${slot.jamSelesai}",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.primary
                     )
+
                     Spacer(Modifier.height(4.dp))
+
+                    // Kapasitas total
                     Text(
-                        text = "Kapasitas: ${slot.terpakai}/${slot.kapasitas}",
-                        style = MaterialTheme.typography.bodyMedium
+                        text = "Kapasitas: ${slot.kapasitas}",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+
+                    // Sisa slot
                     Text(
-                        text = if (isAvailable) "Tersedia ($sisaKapasitas slot)" else "Penuh",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = if (isAvailable)
-                            MaterialTheme.colorScheme.primary
+                        text = "Sisa: $sisaSlot",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (sisaSlot > 0)
+                            MaterialTheme.colorScheme.tertiary
                         else
                             MaterialTheme.colorScheme.error
                     )
@@ -228,6 +232,27 @@ private fun SlotItemCard(
                     }
                 }
             }
+
+            Spacer(Modifier.height(8.dp))
+
+            // Status indicator
+            Surface(
+                color = if (isAktif)
+                    MaterialTheme.colorScheme.primaryContainer
+                else
+                    MaterialTheme.colorScheme.errorContainer,
+                shape = MaterialTheme.shapes.small
+            ) {
+                Text(
+                    text = if (isAktif) "Aktif" else "Penuh",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = if (isAktif)
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    else
+                        MaterialTheme.colorScheme.onErrorContainer,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
         }
     }
 }
@@ -243,7 +268,7 @@ private fun SlotFormDialog(
     onSimpan: (tanggal: String, jamMulai: String, jamSelesai: String, kapasitas: Int) -> Unit
 ) {
     val context = LocalContext.current
-    val calendar = Calendar.getInstance()
+    val calendar = remember { Calendar.getInstance() }
 
     var tanggal by remember { mutableStateOf(initialTanggal) }
     var jamMulai by remember { mutableStateOf(initialJamMulai) }
@@ -254,37 +279,27 @@ private fun SlotFormDialog(
     var jamMulaiError by remember { mutableStateOf(false) }
     var jamSelesaiError by remember { mutableStateOf(false) }
     var kapasitasError by remember { mutableStateOf(false) }
+    var waktuError by remember { mutableStateOf(false) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
             Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Date Picker
-                OutlinedTextField(
-                    value = tanggal,
-                    onValueChange = {},
-                    label = { Text("Tanggal") },
-                    isError = tanggalError,
-                    supportingText = if (tanggalError) {
-                        { Text("Tanggal wajib dipilih") }
-                    } else null,
-                    readOnly = true,
-                    trailingIcon = {
-                        Icon(
-                            Icons.Default.DateRange,
-                            contentDescription = "Pilih Tanggal"
-                        )
-                    },
+                // ===== TANGGAL =====
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
                             DatePickerDialog(
                                 context,
                                 { _, year, month, day ->
-                                    tanggal = String.format("%04d-%02d-%02d", year, month + 1, day)
+                                    tanggal = String.format(
+                                        "%04d-%02d-%02d",
+                                        year, month + 1, day
+                                    )
                                     tanggalError = false
                                 },
                                 calendar.get(Calendar.YEAR),
@@ -292,57 +307,120 @@ private fun SlotFormDialog(
                                 calendar.get(Calendar.DAY_OF_MONTH)
                             ).show()
                         }
-                )
+                ) {
+                    OutlinedTextField(
+                        value = tanggal,
+                        onValueChange = {},
+                        label = { Text("Tanggal") },
+                        readOnly = true,
+                        enabled = false,
+                        isError = tanggalError,
+                        supportingText = if (tanggalError) {
+                            { Text("Tanggal wajib diisi") }
+                        } else null,
+                        trailingIcon = {
+                            Icon(
+                                Icons.Default.DateRange,
+                                contentDescription = null
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
 
-                // Jam Mulai
-                OutlinedTextField(
-                    value = jamMulai,
-                    onValueChange = {},
-                    label = { Text("Jam Mulai") },
-                    isError = jamMulaiError,
-                    supportingText = if (jamMulaiError) {
-                        { Text("Jam mulai wajib dipilih") }
-                    } else null,
-                    readOnly = true,
+                // ===== JAM MULAI =====
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
+                            val hour = if (jamMulai.isNotBlank()) {
+                                jamMulai.split(":").getOrNull(0)?.toIntOrNull() ?: 9
+                            } else 9
+                            val minute = if (jamMulai.isNotBlank()) {
+                                jamMulai.split(":").getOrNull(1)?.toIntOrNull() ?: 0
+                            } else 0
+
                             TimePickerDialog(
                                 context,
-                                { _, hour, minute ->
-                                    jamMulai = String.format("%02d:%02d", hour, minute)
+                                { _, h, m ->
+                                    jamMulai = String.format("%02d:%02d", h, m)
                                     jamMulaiError = false
+                                    waktuError = false
                                 },
-                                9, 0, true
+                                hour, minute, true
                             ).show()
                         }
-                )
+                ) {
+                    OutlinedTextField(
+                        value = jamMulai,
+                        onValueChange = {},
+                        label = { Text("Jam Mulai") },
+                        readOnly = true,
+                        enabled = false,
+                        isError = jamMulaiError,
+                        supportingText = if (jamMulaiError) {
+                            { Text("Jam mulai wajib diisi") }
+                        } else null,
+                        trailingIcon = {
+                            Icon(
+                                Icons.Default.Schedule,
+                                contentDescription = null
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
 
-                // Jam Selesai
-                OutlinedTextField(
-                    value = jamSelesai,
-                    onValueChange = {},
-                    label = { Text("Jam Selesai") },
-                    isError = jamSelesaiError,
-                    supportingText = if (jamSelesaiError) {
-                        { Text("Jam selesai wajib dipilih") }
-                    } else null,
-                    readOnly = true,
+                // ===== JAM SELESAI =====
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
+                            val hour = if (jamSelesai.isNotBlank()) {
+                                jamSelesai.split(":").getOrNull(0)?.toIntOrNull() ?: 10
+                            } else 10
+                            val minute = if (jamSelesai.isNotBlank()) {
+                                jamSelesai.split(":").getOrNull(1)?.toIntOrNull() ?: 0
+                            } else 0
+
                             TimePickerDialog(
                                 context,
-                                { _, hour, minute ->
-                                    jamSelesai = String.format("%02d:%02d", hour, minute)
+                                { _, h, m ->
+                                    jamSelesai = String.format("%02d:%02d", h, m)
                                     jamSelesaiError = false
+                                    waktuError = false
                                 },
-                                10, 0, true
+                                hour, minute, true
                             ).show()
                         }
-                )
+                ) {
+                    OutlinedTextField(
+                        value = jamSelesai,
+                        onValueChange = {},
+                        label = { Text("Jam Selesai") },
+                        readOnly = true,
+                        enabled = false,
+                        isError = jamSelesaiError || waktuError,
+                        supportingText = when {
+                            jamSelesaiError -> {
+                                { Text("Jam selesai wajib diisi") }
+                            }
+                            waktuError -> {
+                                { Text("Jam selesai harus lebih dari jam mulai") }
+                            }
+                            else -> null
+                        },
+                        trailingIcon = {
+                            Icon(
+                                Icons.Default.Schedule,
+                                contentDescription = null
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
 
-                // Kapasitas
+                // ===== KAPASITAS =====
                 OutlinedTextField(
                     value = kapasitas,
                     onValueChange = {
@@ -352,7 +430,7 @@ private fun SlotFormDialog(
                     label = { Text("Kapasitas") },
                     isError = kapasitasError,
                     supportingText = if (kapasitasError) {
-                        { Text("Kapasitas minimal 1") }
+                        { Text("Kapasitas harus lebih dari 0") }
                     } else null,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
@@ -363,21 +441,29 @@ private fun SlotFormDialog(
         confirmButton = {
             TextButton(
                 onClick = {
+                    // Validasi
                     tanggalError = tanggal.isBlank()
                     jamMulaiError = jamMulai.isBlank()
                     jamSelesaiError = jamSelesai.isBlank()
-                    kapasitasError = kapasitas.isBlank() ||
-                            kapasitas.toIntOrNull() == null ||
-                            kapasitas.toInt() < 1
+                    kapasitasError = kapasitas.toIntOrNull() == null || kapasitas.toInt() <= 0
 
-                    if (!tanggalError && !jamMulaiError && !jamSelesaiError && !kapasitasError) {
-                        onSimpan(
-                            tanggal,
-                            jamMulai,
-                            jamSelesai,
-                            kapasitas.toInt()
-                        )
+                    // Validasi waktu: jam selesai harus > jam mulai
+                    waktuError = if (jamMulai.isNotBlank() && jamSelesai.isNotBlank()) {
+                        jamSelesai <= jamMulai
+                    } else {
+                        false
                     }
+
+                    if (tanggalError || jamMulaiError || jamSelesaiError || kapasitasError || waktuError) {
+                        return@TextButton
+                    }
+
+                    onSimpan(
+                        tanggal,
+                        jamMulai,
+                        jamSelesai,
+                        kapasitas.toInt()
+                    )
                 }
             ) {
                 Text("Simpan")
