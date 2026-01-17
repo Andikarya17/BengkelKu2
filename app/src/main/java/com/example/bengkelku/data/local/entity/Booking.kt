@@ -72,13 +72,12 @@ data class Booking(
 
 /**
  * Status pengerjaan booking servis
- * Must match backend status values
+ * Only 3 valid statuses: MENUNGGU, DIPROSES, SELESAI
  */
 enum class StatusBooking {
     MENUNGGU,
     DIPROSES,
-    SELESAI,
-    DIBATALKAN;  // Changed from DIAMBIL to match backend
+    SELESAI;
     
     companion object {
         fun fromString(value: String): StatusBooking {
@@ -86,7 +85,6 @@ enum class StatusBooking {
                 "MENUNGGU" -> MENUNGGU
                 "DIPROSES" -> DIPROSES
                 "SELESAI" -> SELESAI
-                "DIBATALKAN" -> DIBATALKAN
                 else -> MENUNGGU
             }
         }

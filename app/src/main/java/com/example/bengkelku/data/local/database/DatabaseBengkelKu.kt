@@ -19,13 +19,9 @@ import com.example.bengkelku.data.local.entity.SlotServis
 /**
  * Room Database for BengkelKu app
  * 
- * Version 4: Schema fix
- * - Removed autoGenerate from all PrimaryKeys (use backend IDs)
- * - Added warna to Kendaraan
- * - Added status to SlotServis
- * - Changed nomorAntrian from String to Int in Booking
- * - Changed StatusBooking.DIAMBIL to StatusBooking.DIBATALKAN
- * - Changed all ForeignKey onDelete to CASCADE
+ * Version 5: Status cleanup
+ * - StatusBooking now only has 3 values: MENUNGGU, DIPROSES, SELESAI
+ * - Removed nomorAntrian from Booking
  */
 @Database(
     entities = [
@@ -35,7 +31,7 @@ import com.example.bengkelku.data.local.entity.SlotServis
         SlotServis::class,
         Booking::class
     ],
-    version = 4,  // INCREMENTED - Schema changed significantly
+    version = 5,  // StatusBooking cleanup
     exportSchema = false
 )
 @TypeConverters(Converters::class)

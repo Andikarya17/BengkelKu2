@@ -62,7 +62,7 @@ interface BookingDao {
     @Query("""
         SELECT * FROM booking
         WHERE penggunaId = :penggunaId
-          AND status IN ('SELESAI', 'DIBATALKAN')
+          AND status = 'SELESAI'
         ORDER BY tanggalServis DESC
     """)
     fun getRiwayatBooking(penggunaId: Int): Flow<List<Booking>>

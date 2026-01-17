@@ -183,12 +183,15 @@ private fun BookingItemAdmin(
     val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale("id", "ID")) }
     var expanded by remember { mutableStateOf(false) }
 
-    // Status options based on current status
-    val statusOptions = when (booking.status.uppercase()) {
+    // Normalize status - default to MENUNGGU if empty or unrecognized
+    val normalizedStatus = booking.status.uppercase().ifBlank { "MENUNGGU" }
+    
+    // Status options based on current status (only 3 valid: MENUNGGU, DIPROSES, SELESAI)
+    val statusOptions = when (normalizedStatus) {
         "MENUNGGU" -> listOf("MENUNGGU", "DIPROSES")
         "DIPROSES" -> listOf("DIPROSES", "SELESAI")
         "SELESAI" -> listOf("SELESAI")
-        else -> listOf(booking.status)
+        else -> listOf("MENUNGGU", "DIPROSES", "SELESAI")
     }
 
     Card(
@@ -256,7 +259,7 @@ private fun BookingItemAdmin(
                         .padding(start = 8.dp)
                 ) {
                     OutlinedTextField(
-                        value = booking.status,
+                        value = normalizedStatus,
                         onValueChange = {},
                         readOnly = true,
                         enabled = !isLoading,
@@ -275,7 +278,7 @@ private fun BookingItemAdmin(
                             .menuAnchor(),
                         textStyle = MaterialTheme.typography.bodySmall,
                         colors = OutlinedTextFieldDefaults.colors(
-                            unfocusedContainerColor = when (booking.status.uppercase()) {
+                            unfocusedContainerColor = when (normalizedStatus) {
                                 "MENUNGGU" -> MaterialTheme.colorScheme.tertiaryContainer
                                 "DIPROSES" -> MaterialTheme.colorScheme.primaryContainer
                                 "SELESAI" -> MaterialTheme.colorScheme.secondaryContainer
