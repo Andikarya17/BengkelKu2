@@ -43,6 +43,10 @@ class DashboardAdminViewModel(
             val result = repositoryBooking.getAllBookingApi()
             result.fold(
                 onSuccess = { data ->
+                    // Debug log to see status values
+                    data.forEach { 
+                        android.util.Log.d("AdminVM", "Booking ${it.id}: status='${it.status}'") 
+                    }
                     _bookingState.value = AdminBookingState.Success(data)
                 },
                 onFailure = { error ->
@@ -72,6 +76,7 @@ class DashboardAdminViewModel(
      * Update booking status via API
      */
     fun updateBookingStatus(bookingId: Int, newStatus: String) {
+        android.util.Log.d("AdminVM", "updateBookingStatus: id=$bookingId, status='$newStatus'")
         viewModelScope.launch {
             _aksiState.value = AdminAksiState.Loading
 

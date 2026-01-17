@@ -133,7 +133,8 @@ fun DashboardAdminScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                items(state.data, key = { it.id }) { booking ->
+                                // Key includes status so item recomposes when status changes
+                                items(state.data, key = { "${it.id}_${it.status}" }) { booking ->
                                     BookingItemAdmin(
                                         booking = booking,
                                         onStatusChange = { newStatus ->
@@ -182,127 +183,137 @@ private fun BookingItemAdmin(
 ) {
     val currencyFormat = remember { NumberFormat.getCurrencyInstance(Locale("id", "ID")) }
     var expanded by remember { mutableStateOf(false) }
-
-    // Normalize status - default to MENUNGGU if empty or unrecognized
-    val normalizedStatus = booking.status.uppercase().ifBlank { "MENUNGGU" }
     
-    // Status options based on current status (only 3 valid: MENUNGGU, DIPROSES, SELESAI)
-    val statusOptions = when (normalizedStatus) {
+    // Local mutable state - initialized from booking.status, updates immediately on selection
+    val initialStatus = booking.status.trim().uppercase().ifBlank { "MENUNGGU" }
+    var selectedStatus by remember(booking.id) { mutableStateOf(initialStatus) }
+    
+    // Sync with backend when booking.status changes (after API reload)
+    LaunchedEffect(booking.status) {
+        val newStatus = booking.status.trim().uppercase().ifBlank { "MENUNGGU" }
+        selectedStatus = newStatus
+    }
+    
+    // Status options based on SELECTED status (not booking.status)
+    val statusOptions = when (selectedStatus) {
         "MENUNGGU" -> listOf("MENUNGGU", "DIPROSES")
         "DIPROSES" -> listOf("DIPROSES", "SELESAI")
         "SELESAI" -> listOf("SELESAI")
         else -> listOf("MENUNGGU", "DIPROSES", "SELESAI")
     }
-
+    
     Card(
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(Modifier.padding(12.dp)) {
-            // Customer name
-            Text(
-                "Customer: ${booking.namaPengguna ?: "N/A"}",
-                style = MaterialTheme.typography.titleSmall
-            )
-
-            Spacer(Modifier.height(4.dp))
-
-            // Vehicle info
-            Text(
-                "Kendaraan: ${booking.namaKendaraan ?: "N/A"}",
-                style = MaterialTheme.typography.bodyMedium
-            )
-
-            // Service name
-            Text(
-                "Servis: ${booking.namaServis ?: "N/A"}",
-                style = MaterialTheme.typography.bodyMedium
-            )
-
-            // Date & Time
-            Text(
-                "Jadwal: ${booking.tanggalServis} ${booking.jamServis}",
-                style = MaterialTheme.typography.bodyMedium
-            )
-
-            // Queue number
-            Text(
-                "Antrian: ${booking.nomorAntrian}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-
-            // Total
-            Text(
-                "Total: ${currencyFormat.format(booking.totalBiaya)}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
-
-            Spacer(Modifier.height(8.dp))
-
-            // Status dropdown
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+                // Customer name
                 Text(
-                    "Status:",
-                    style = MaterialTheme.typography.labelMedium
+                    "Customer: ${booking.namaPengguna ?: "N/A"}",
+                    style = MaterialTheme.typography.titleSmall
                 )
 
-                ExposedDropdownMenuBox(
-                    expanded = expanded,
-                    onExpandedChange = { if (!isLoading) expanded = !expanded },
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(start = 8.dp)
+                Spacer(Modifier.height(4.dp))
+
+                // Vehicle info
+                Text(
+                    "Kendaraan: ${booking.namaKendaraan ?: "N/A"}",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                // Service name
+                Text(
+                    "Servis: ${booking.namaServis ?: "N/A"}",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                // Date & Time
+                Text(
+                    "Jadwal: ${booking.tanggalServis} ${booking.jamServis}",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                // Queue number
+                Text(
+                    "Antrian: ${booking.nomorAntrian}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                // Total
+                Text(
+                    "Total: ${currencyFormat.format(booking.totalBiaya)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+
+                Spacer(Modifier.height(8.dp))
+
+                // Status dropdown
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    OutlinedTextField(
-                        value = normalizedStatus,
-                        onValueChange = {},
-                        readOnly = true,
-                        enabled = !isLoading,
-                        trailingIcon = {
-                            if (isLoading) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(16.dp),
-                                    strokeWidth = 2.dp
-                                )
-                            } else {
-                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor(),
-                        textStyle = MaterialTheme.typography.bodySmall,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            unfocusedContainerColor = when (normalizedStatus) {
-                                "MENUNGGU" -> MaterialTheme.colorScheme.tertiaryContainer
-                                "DIPROSES" -> MaterialTheme.colorScheme.primaryContainer
-                                "SELESAI" -> MaterialTheme.colorScheme.secondaryContainer
-                                else -> MaterialTheme.colorScheme.surfaceVariant
-                            }
-                        )
+                    Text(
+                        "Status:",
+                        style = MaterialTheme.typography.labelMedium
                     )
 
-                    ExposedDropdownMenu(
+                    ExposedDropdownMenuBox(
                         expanded = expanded,
-                        onDismissRequest = { expanded = false }
+                        onExpandedChange = { if (!isLoading) expanded = !expanded },
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(start = 8.dp)
                     ) {
-                        statusOptions.forEach { status ->
-                            DropdownMenuItem(
-                                text = { Text(status) },
-                                onClick = {
-                                    onStatusChange(status)
-                                    expanded = false
+                        OutlinedTextField(
+                            value = selectedStatus,
+                            onValueChange = {},
+                            readOnly = true,
+                            enabled = !isLoading,
+                            trailingIcon = {
+                                if (isLoading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                } else {
+                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .menuAnchor(),
+                            textStyle = MaterialTheme.typography.bodySmall,
+                            colors = OutlinedTextFieldDefaults.colors(
+                                unfocusedContainerColor = when (selectedStatus) {
+                                    "MENUNGGU" -> MaterialTheme.colorScheme.tertiaryContainer
+                                    "DIPROSES" -> MaterialTheme.colorScheme.primaryContainer
+                                    "SELESAI" -> MaterialTheme.colorScheme.secondaryContainer
+                                    else -> MaterialTheme.colorScheme.surfaceVariant
                                 }
                             )
+                        )
+
+                        ExposedDropdownMenu(
+                            expanded = expanded,
+                            onDismissRequest = { expanded = false }
+                        ) {
+                            statusOptions.forEach { status ->
+                                DropdownMenuItem(
+                                    text = { Text(status) },
+                                    onClick = {
+                                        // Update local state IMMEDIATELY
+                                        selectedStatus = status
+                                        expanded = false
+                                        // Then call API
+                                        onStatusChange(status)
+                                    }
+                                )
+                            }
                         }
                     }
                 }
-            }
         }
     }
 }
